@@ -1,0 +1,29 @@
+import java.io.*;
+import java.net.*;
+
+public class Cliente {
+    private static final String DIRECCION_SERVIDOR = "localhost";
+    private static final int PUERTO = 12345;
+
+    public static void main(String[] args) {
+        try (Socket socket = new Socket(DIRECCION_SERVIDOR, PUERTO);
+             ObjectInputStream entrada = new ObjectInputStream(socket.getInputStream());
+             ObjectOutputStream salida = new ObjectOutputStream(socket.getOutputStream())) {
+
+            // Ejemplo de uso: Listar placas
+            salida.writeObject("listarPlacas");
+            System.out.println(entrada.readObject());
+
+            // Agregar un vehículo
+            Vehiculo nuevoVehiculo = new Vehiculo("ABC123", "automóvil", "Toyota", "Corolla", 2020, 0, 1.8, 20000);
+            salida.writeObject("agregarVehiculo");
+            salida.writeObject(nuevoVehiculo);
+            System.out.println(entrada.readObject());
+
+            // Más operaciones se pueden agregar aquí...
+
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+}
