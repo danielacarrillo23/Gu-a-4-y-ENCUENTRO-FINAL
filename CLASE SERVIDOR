@@ -1,0 +1,156 @@
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class Servidor {
+    private static final int PUERTO = 12345;
+    private static List<Vehiculo> vehiculos = new ArrayList<>();
+
+    public static void main(String[] args) {
+        try (ServerSocket serverSocket = new ServerSocket(PUERTO)) {
+            System.out.println("Servidor escuchando en el puerto " + PUERTO);
+            while (true) {
+                Socket socket = serverSocket.accept();
+                new HiloCliente(socket).start();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static class HiloCliente extends Thread {
+        private Socket socket;
+
+        public HiloCliente(Socket socket) {
+            this.socket = socket;
+        }
+
+        public void run() {
+            try (ObjectInputStream entrada = new ObjectInputStream(socket.getInputStream());
+                 ObjectOutputStream salida = new ObjectOutputStream(socket.getOutputStream())) {
+
+                String opcion;
+                while ((opcion = (String) entrada.readObject()) != null) {
+                    switch (opcion) {
+                        case "listarPlacas":
+                            salida.writeObject(listarPlacas());
+                            break;
+                        case "detalleVehiculo":
+                            String placa = (String) entrada.readObject();
+                            salida.writeObject(obtenerDetalles(placa));
+                            break;
+                        case "agregarVehiculo":
+                            Vehiculo vehiculo = (Vehiculo) entrada.readObject();
+                            agregarVehiculo(vehiculo);
+                            salida.writeObject("Vehículo agregado.");
+                            break;
+                        case "ordenar":
+                            String criterio = (String) entrada.readObject();
+                            salida.writeObject(ordenarVehiculos(criterio));
+                            break;
+                        case "buscarPlacas":
+                            String modelo = (String) entrada.readObject();
+                            int año = (int) entrada.readObject();
+                            salida.writeObject(buscarPlacas(modelo, año));
+                            break;
+                        case "comprar":
+                            placa = (String) entrada.readObject();
+                            comprarVehiculo(placa);
+                            salida.writeObject("Vehículo comprado.");
+                            break;
+                        case "disminuirPrecio":
+                            double cantidad = (double) entrada.readObject();
+                            disminuirPrecio(cantidad);
+                            salida.writeObject("Precio actualizado.");
+                            break;
+                        case "vehiculoMasAntiguo":
+                            salida.writeObject(localizarVehiculoMasAntiguo());
+                            break;
+                        case "vehiculoMasPotente":
+                            salida.writeObject(localizarVehiculoMasPotente());
+                            break;
+                        case "vehiculoMasBarato":
+                            salida.writeObject(localizarVehiculoMasBarato());
+                            break;
+                    }
+                }
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // Métodos de operaciones
+
+    private static List<String> listarPlacas() {
+        List<String> placas = new ArrayList<>();
+        for (Vehiculo v : vehiculos) {
+            placas.add(v.getPlaca());
+        }
+        return placas;
+    }
+
+    private static Vehiculo obtenerDetalles(String placa) {
+        for (Vehiculo v : vehiculos) {
+            if (v.getPlaca().equals(placa)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private static void agregarVehiculo(Vehiculo vehiculo) {
+        vehiculos.add(vehiculo);
+    }
+
+    private static List<Vehiculo> ordenarVehiculos(String criterio) {
+        Comparator<Vehiculo> comparator = null;
+        switch (criterio) {
+            case "modelo":
+                comparator = Comparator.comparing(Vehiculo::getModelo);
+                break;
+            case "marca":
+                comparator = Comparator.comparing(Vehiculo::getMarca);
+                break;
+            case "año":
+                comparator = Comparator.comparingInt(Vehiculo::getAño);
+                break;
+        }
+        vehiculos.sort(comparator);
+        return vehiculos;
+    }
+
+    private static List<String> buscarPlacas(String modelo, int año) {
+        List<String> placasEncontradas = new ArrayList<>();
+        for (Vehiculo v : vehiculos) {
+            if (v.getModelo().equalsIgnoreCase(modelo) && v.getAño() == año) {
+                placasEncontradas.add(v.getPlaca());
+            }
+        }
+        return placasEncontradas;
+    }
+
+    private static void comprarVehiculo(String placa) {
+        vehiculos.removeIf(v -> v.getPlaca().equals(placa));
+    }
+
+    private static void disminuirPrecio(double cantidad) {
+        for (Vehiculo v : vehiculos) {
+            if (v.getValor() > cantidad) {
+                v.setValor(v.getValor() * 0.9); // Disminuir en 10%
+            }
+        }
+    }
+
+    private static Vehiculo localizarVehiculoMasAntiguo() {
+        return vehiculos.stream().min(Comparator.comparingInt(Vehiculo::getAño)).orElse(null);
+    }
+
+    private static Vehiculo localizarVehiculoMasPotente() {
+        return vehiculos.stream().max(Comparator.comparingDouble(Vehiculo::getCilindrada)).orElse(null);
+    }
+
+    private static Vehiculo localizarVehiculoMasBarato() {
+        return vehiculos.stream().min(Comparator.comparingDouble(Vehiculo::getValor)).orElse(null);
+    }
+}
